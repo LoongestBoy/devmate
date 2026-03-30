@@ -5,6 +5,12 @@ build/
 dist/
 wheels/
 *.egg-info
+config.toml
+DevMate/config.toml
+.env
+.skills/
+__pycache__/
+*.pyc
 
 # Virtual environments
 .venv
