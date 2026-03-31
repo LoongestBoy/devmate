@@ -11,6 +11,7 @@ DevMate/config.toml
 .skills/
 __pycache__/
 *.pyc
-
+.chroma_db/
+embedding_model/
 # Virtual environments
 .venv
