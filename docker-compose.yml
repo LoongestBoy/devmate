@@ -1,0 +1,37 @@
+
+
+services:
+  # ----------------------------------------
+  # 1. MCP 节点服务 (网络搜索)
+  # ----------------------------------------
+  mcp-server:
+    build: .
+    container_name: devmate-mcp
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/.venv
+      # 挂载整个项目目录以实现热更新
+    environment:
+      - NO_PROXY=127.0.0.1,localhost
+    command: ["/opt/venv/bin/python", "src/mcp_server.py"]
+
+  # ----------------------------------------
+  # 2. Chat API 后端服务 (大脑)
+  # ----------------------------------------
+  chat-api:
+    build: .
+    container_name: devmate-chat
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/.venv
+      # 满足第六阶段约束：在挂载卷中工作，确保生成的代码落盘到宿主机
+    environment:
+      - NO_PROXY=127.0.0.1,localhost
+    depends_on:
+      - mcp-server
+    # 容器内必须绑定到 0.0.0.0 才能让宿主机访问
+    command: ["/opt/venv/bin/uvicorn", "chat_server:app", "--host", "0.0.0.0", "--port", "8080", "--app-dir", "src"]
