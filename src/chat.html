@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevMate - 智能助手 Pro Max</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* 主题变量与平滑过渡 */
+        :root {
+            --bg-main: #ffffff;
+            --bg-sidebar: #f7f9fc;
+            --text-main: #1f1f1f;
+            --text-muted: #5f6368;
+            --bubble-user: #e3f2fd;
+            --bubble-ai: transparent;
+            --accent: #1a73e8;
+            --accent-hover: #1557b0;
+            --border: #e0e0e0;
+            --item-hover: #e8eaed;
+            --item-active: #d2e3fc;
+            --code-bg: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #202124;
+            --bg-sidebar: #171717;
+            --text-main: #e8eaed;
+            --text-muted: #9aa0a6;
+            --bubble-user: #3c4043;
+            --bubble-ai: transparent;
+            --accent: #8ab4f8;
+            --accent-hover: #aecbfa;
+            --border: #3c4043;
+            --item-hover: #303134;
+            --item-active: #424649;
+            --code-bg: #2d2f31;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); }
+
+        /* 侧边栏 */
+        .sidebar { width: 280px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; }
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .theme-toggle { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main); }
+        .new-chat-btn { background-color: var(--accent); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; }
+        .new-chat-btn:hover { background-color: var(--accent-hover); }
+        .history-list { margin-top: 15px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; cursor: pointer; color: var(--text-main); font-size: 0.9rem; border: 1px solid transparent; }
+        .history-item:hover { background-color: var(--item-hover); }
+        .history-item.active { background-color: var(--item-active); font-weight: 500; }
+        .item-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-actions { display: none; gap: 5px; font-size: 1rem; }
+        .history-item:hover .item-actions { display: flex; }
+        .action-btn { cursor: pointer; opacity: 0.6; }
+        .action-btn:hover { opacity: 1; }
+
+        /* 主聊天区 */
+        .main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .chat-box { flex: 1; padding: 40px 15%; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; scroll-behavior: smooth; }
+
+        .message { display: flex; flex-direction: column; max-width: 85%; }
+        .user-msg { align-self: flex-end; align-items: flex-end; }
+        .user-msg .bubble { background-color: var(--bubble-user); color: var(--text-main); padding: 12px 20px; border-radius: 20px 20px 4px 20px; line-height: 1.5; white-space: pre-wrap; }
+        .ai-msg { align-self: flex-start; width: 100%; }
+
+        /* 思考过程折叠框样式 */
+        .thinking-area { margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .tool-details { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-sidebar); overflow: hidden; }
+        .tool-summary { padding: 8px 12px; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; outline: none; user-select: none; display: flex; align-items: center; gap: 6px; }
+        .tool-summary:hover { background: var(--item-hover); }
+        .tool-args { padding: 10px 12px; border-top: 1px solid var(--border); font-family: Consolas, monospace; font-size: 0.85rem; color: var(--text-muted); white-space: pre-wrap; background: var(--bg-main); overflow-x: auto; }
+
+        .content-area { line-height: 1.6; color: var(--text-main); width: 100%; }
+
+        /* Markdown 样式 */
+        .markdown-body p { margin-bottom: 12px; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 20px; margin-bottom: 10px; font-weight: 600; }
+        .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 12px; }
+        .markdown-body code { font-family: Consolas, Monaco, monospace; background-color: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: var(--accent); }
+        .markdown-body pre { background-color: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); }
+        .markdown-body pre code { background-color: transparent; padding: 0; color: var(--text-main); font-size: 0.9em; }
+
+        /* 输入区 */
+        .input-container { padding: 20px 15%; background: var(--bg-main); border-top: 1px solid var(--border); }
+        .input-box { display: flex; background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 16px; padding: 10px 16px; align-items: flex-end; }
+        textarea { flex: 1; background: transparent; border: none; outline: none; padding: 8px; font-size: 1rem; color: var(--text-main); resize: none; max-height: 150px; font-family: inherit; }
+        .send-btn { background: none; border: none; cursor: pointer; padding: 8px; color: var(--accent); display: flex; align-items: center; justify-content: center; }
+        .send-btn:disabled { color: var(--text-muted); cursor: not-allowed; }
+
+        /* 思考中的闪烁动画 */
+        .loading-pulse { animation: pulse 1.5s infinite; color: var(--text-muted); font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h2 style="font-size: 1.2rem;">DevMate</h2>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切换主题">🌙</button>
+    </div>
+    <button class="new-chat-btn" onclick="createNewThread()">+ 开启新对话</button>
+    <div class="history-list" id="history-list"></div>
+</div>
+
+<div class="main-chat">
+    <div class="chat-box" id="chat-box"></div>
+    <div class="input-container">
+        <div class="input-box">
+            <textarea id="user-input" rows="1" placeholder="发送消息给 DevMate..." oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "http://127.0.0.1:8080/api";
+    const chatBox = document.getElementById('chat-box');
+    const userInput = document.getElementById('user-input');
+    const historyList = document.getElementById('history-list');
+    const sendBtn = document.getElementById('send-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+
+    // ==========================================
+    // 核心安全包裹：安全访问 localStorage
+    // 即使在 file:/// 下被浏览器拦截，也不会引发全站崩溃
+    // ==========================================
+    function safeGetItem(key, defaultValue) {
+        try { return localStorage.getItem(key) || defaultValue; }
+        catch (e) { return defaultValue; }
+    }
+
+    function safeSetItem(key, value) {
+        try { localStorage.setItem(key, value); }
+        catch (e) { console.warn("浏览器禁用了本地文件的存储功能，记忆仅在本次打开有效。"); }
+    }
+
+    // 主题管理
+    function initTheme() {
+        const savedTheme = safeGetItem('devmate_theme', 'light');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeToggleBtn.innerText = '☀️';
+        }
+    }
+    initTheme();
+
+    function toggleTheme() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            safeSetItem('devmate_theme', 'light');
+            themeToggleBtn.innerText = '🌙';
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            safeSetItem('devmate_theme', 'dark');
+            themeToggleBtn.innerText = '☀️';
+        }
+    }
+
+    // 会话管理
+    let threads = [];
+    try {
+        const stored = safeGetItem('devmate_threads', '[]');
+        threads = JSON.parse(stored);
+    } catch (e) {
+        threads = [];
+    }
+
+    let currentThreadId = null;
+
+    window.onload = () => {
+        if (threads.length === 0) createNewThread();
+        else loadThread(threads[0].id);
+        renderSidebar();
+    };
+
+    function saveThreads() {
+        safeSetItem('devmate_threads', JSON.stringify(threads));
+        renderSidebar();
+    }
+
+    function createNewThread() {
+        currentThreadId = 'thread_' + Date.now();
+        threads.unshift({ id: currentThreadId, title: '新对话', pinned: false, timestamp: Date.now() });
+        saveThreads();
+        chatBox.innerHTML = '<div class="message ai-msg"><div class="content-area markdown-body">✨ 你好！我是 DevMate，需要写点什么？</div></div>';
+    }
+
+    function togglePin(e, id) { e.stopPropagation(); const thread = threads.find(t => t.id === id); if (thread) { thread.pinned = !thread.pinned; saveThreads(); } }
+    function renameThread(e, id) { e.stopPropagation(); const thread = threads.find(t => t.id === id); const newTitle = prompt("请输入对话名称：", thread.title); if (newTitle) { thread.title = newTitle.trim(); saveThreads(); } }
+    function deleteThread(e, id) { e.stopPropagation(); if (confirm("确定删除？")) { threads = threads.filter(t => t.id !== id); if (currentThreadId === id) { if (threads.length > 0) loadThread(threads[0].id); else createNewThread(); } else saveThreads(); } }
+
+    async function loadThread(threadId) {
+        currentThreadId = threadId;
+        renderSidebar();
+        chatBox.innerHTML = '<div style="text-align:center; color:var(--text-muted);">正在加载...</div>';
+        try {
+            const res = await fetch(`${API_BASE}/history/${threadId}`);
+            const data = await res.json();
+            chatBox.innerHTML = '';
+            if (data.messages.length === 0) chatBox.innerHTML = '<div class="message ai-msg"><div class="content-area markdown-body">✨ 你好！我是 DevMate，需要写点什么？</div></div>';
+            else data.messages.forEach(msg => appendMessageStructure(msg.role, msg.role === 'ai' ? marked.parse(msg.content) : msg.content));
+        } catch (error) { chatBox.innerHTML = '<div class="error-msg">⚠️ 无法连接后端。</div>'; }
+    }
+
+    function renderSidebar() {
+        const sortedThreads = [...threads].sort((a, b) => { if (a.pinned !== b.pinned) return b.pinned ? 1 : -1; return b.timestamp - a.timestamp; });
+        historyList.innerHTML = sortedThreads.map(t => `
+            <div class="history-item ${t.id === currentThreadId ? 'active' : ''}" onclick="loadThread('${t.id}')">
+                <span class="item-title">${t.pinned ? '📌 ' : '💬 '}${t.title}</span>
+                <div class="item-actions">
+                    <span class="action-btn" onclick="togglePin(event, '${t.id}')" title="置顶">📌</span>
+                    <span class="action-btn" onclick="renameThread(event, '${t.id}')" title="重命名">✏️</span>
+                    <span class="action-btn" onclick="deleteThread(event, '${t.id}')" title="删除">🗑️</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 生成具备“思考区”和“内容区”的气泡结构
+    function appendMessageStructure(role, htmlContent) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role === 'user' ? 'user-msg' : 'ai-msg'}`;
+
+        if (role === 'ai') {
+            msgDiv.innerHTML = `
+                <div class="thinking-area"></div>
+                <div class="content-area markdown-body">${htmlContent}</div>
+            `;
+        } else {
+            msgDiv.innerHTML = `<div class="bubble">${htmlContent}</div>`;
+        }
+
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return msgDiv;
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        const currentThread = threads.find(t => t.id === currentThreadId);
+        if (currentThread && currentThread.title === '新对话') { currentThread.title = text.substring(0, 12) + (text.length > 12 ? '...' : ''); saveThreads(); }
+
+        appendMessageStructure('user', text);
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        sendBtn.disabled = true;
+
+        const msgNode = appendMessageStructure('ai', '<span class="loading-pulse">⏳ 引擎正在思考...</span>');
+        const thinkingArea = msgNode.querySelector('.thinking-area');
+        const contentArea = msgNode.querySelector('.content-area');
+
+        let aiFullText = "";
+        let isFirstTextChunk = true;
+        let hasError = false; // 【新增】：记录是否发生了后端报错
+
+        try {
+            const response = await fetch(`${API_BASE}/chat/stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, thread_id: currentThreadId })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                let lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (let line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') break;
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            if (data.type === 'tool') {
+                                const toolNameMap = { 'search_local_docs': '检索本地规范', 'search_web': '全网搜索', 'write_to_file': '写入本地文件', 'save_skill': '提取记忆' };
+                                const friendlyName = toolNameMap[data.name] || data.name;
+                                thinkingArea.innerHTML += `
+                                    <details class="tool-details">
+                                        <summary class="tool-summary">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                            正在${friendlyName}...
+                                        </summary>
+                                        <div class="tool-args">${JSON.stringify(data.args, null, 2)}</div>
+                                    </details>
+                                `;
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                            else if (data.type === 'content' || data.chunk) {
+                                if (isFirstTextChunk) {
+                                    contentArea.innerHTML = '';
+                                    isFirstTextChunk = false;
+                                }
+                                aiFullText += (data.chunk || "");
+                                contentArea.innerHTML = marked.parse(aiFullText);
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                            else if (data.error) {
+                                // 【修复】：一旦报错，显示出来并标记，绝不覆盖！
+                                contentArea.innerHTML = `<span style="color:#d93025;">❌ 后端报错: ${data.error}</span>`;
+                                hasError = true;
+                                chatBox.scrollTop = chatBox.scrollHeight;
+                            }
+                        } catch (e) {
+                            console.error("解析流数据失败:", e);
+                        }
+                    }
+                }
+            }
+
+            // 【核心修复】：如果没有收到文字，且没有报错，自动去数据库捞取最新记录！
+            if (isFirstTextChunk && !hasError) {
+                contentArea.innerHTML = '<span class="loading-pulse">🔄 正在同步记忆...</span>';
+                await loadThread(currentThreadId);
+            }
+
+        } catch (error) {
+            contentArea.innerHTML = '<span style="color:#d93025;">⚠️ 网络连接中断。</span>';
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    function autoResize(textarea) { textarea.style.height = 'auto'; textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px'; }
+    function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if(!sendBtn.disabled) sendMessage(); } }
+</script>
+
+</body>
+</html>

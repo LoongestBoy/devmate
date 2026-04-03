@@ -8,6 +8,13 @@ wheels/
 config.toml
 DevMate/config.toml
 .env
+web/
+chat_history/
+index.html
+styles.css
+app.js
+pyproject.toml
+api/
 .skills/
 __pycache__/
 *.pyc
