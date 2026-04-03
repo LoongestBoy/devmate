@@ -18,7 +18,9 @@ api/
 .skills/
 __pycache__/
 *.pyc
+*.sqlite3
 .chroma_db/
 embedding_model/
 # Virtual environments
 .venv
+.DS_Store
